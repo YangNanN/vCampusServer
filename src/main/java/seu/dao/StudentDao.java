@@ -8,10 +8,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-import seu.domain.CourseSelect;
-import seu.domain.Library;
 import seu.domain.Student;
-import seu.domain.Dormitory;
+
 @Repository
 public class StudentDao {
 
@@ -69,6 +67,12 @@ public class StudentDao {
     public int updatePasswordByStudentID(final int studentId, final String Password) {
         final String sql = "UPDATE Student SET Password = ? WHERE StudentID = ?";
         Object[] params = new Object[] {Password, studentId};
+        return jdbcTemplate.update(sql, params);
+    }
+
+    public int updateStudentByStudentID(Student student){
+        final String sql = "UPDATE Student SET StudentName = ?, ClassID = ?, DormitoryID = ?, Balance = ?, Password = ? WHERE StudentID = ?";
+        Object[] params = new Object[]{student.getStudentName(),student.getClassId(),student.getDormitoryId(),student.getBalance(),student.getPassword(),student.getStudentId()};
         return jdbcTemplate.update(sql, params);
     }
 

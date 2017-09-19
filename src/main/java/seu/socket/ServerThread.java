@@ -1,11 +1,12 @@
 package seu.socket;
 
+import javafx.application.Platform;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import seu.controller.MainController;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.*;
 import java.net.Socket;
 
 @Component
@@ -13,6 +14,7 @@ import java.net.Socket;
 public class ServerThread implements Runnable {
 
     private Socket client = null;
+
     void setClient(Socket client) {
         this.client = client;
     }
@@ -20,45 +22,50 @@ public class ServerThread implements Runnable {
     public ServerThread() {
         super();
     }
-    public ServerThread(Socket client){
+
+    public ServerThread(Socket client) {
         this.client = client;
+    }
+
+    private RequestRouter requestRouter;
+
+    private MainController mainController;
+
+    @Autowired
+    public void setRequestRouter(RequestRouter requestRouter) {
+        this.requestRouter = requestRouter;
+    }
+
+    @Autowired
+    public void setMainController(MainController mainController) {
+        this.mainController = mainController;
     }
 
     @Override
     public void run() {
         Server.count++;
-        System.out.println("客户端数量: " + Server.count);
 
-        try{
+        Platform.runLater(new Runnable() {
+            @Override
+            public void run() {
+                mainController.log("Request " + Server.count + " from " + client.getInetAddress().toString() + "\n");
+            }
+        });
+
+        try {
             //获取Socket的输出流，用来向客户端发送数据
-            PrintStream out = new PrintStream(client.getOutputStream());
+            ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
             //获取Socket的输入流，用来接收从客户端发送过来的数据
-            BufferedReader buf = new BufferedReader(new InputStreamReader(client.getInputStream()));
-            boolean flag =true;
-            while(flag){
-                //接收从客户端发送过来的数据
-                final String str =  buf.readLine();
-                //空字符防止阻塞
-                if(str == null || "".equals(str)){
-                    flag = false;
-                }else{
-                    //发送bye字符客户端退出，终止循环
-                    if("bye".equals(str)){
-                        flag = false;
-                    }else{
-                        //将接收到的字符串前面加上echo，发送到对应的客户端
-                        out.println("echo:" + str);
-                        System.out.println(str);
-                    }
-                }
+            ObjectInputStream buf = new ObjectInputStream(new BufferedInputStream(client.getInputStream()));
+            Object object = buf.readObject();
+            if (object != null) {
+                out.writeObject(requestRouter.handleRequest((ClientRequest) object));
+                out.flush();
             }
             out.close();
             client.close();
-        }catch(Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
-        Server.count--;
-        System.out.println("客户端数量: " + Server.count);
     }
 }
